@@ -1,0 +1,69 @@
+---
+
+- name: wsus setup and configuration
+  hosts: all
+  vars:
+    WSUS_SERVER: http://somewsusserver:8530
+
+  tasks:
+    - block:
+      - name: add to registry
+        win_regedit:
+          key: HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate
+          value: WUServer
+          data: "{{ WSUS_SERVER }}"
+          datatype: string
+        notify: report to wsus on change
+
+      - name: set status server     
+        win_regedit:
+          key: HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate
+          value: WUStatusServer
+          data: "{{ WSUS_SERVER }}"
+          datatype: string
+        notify: report to wsus on change
+
+      - name: set target group
+        win_regedit:
+          key: HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate
+          value: TargetGroup
+          data: "{{ hostvars[inventory_hostname].group_names[0] }}"
+          datatype: string
+
+      - name: configure windows updates
+        win_regedit:
+          key: HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate
+          value: "{{ item.v }}"
+          data: "{{ item.d }}"
+          datatype: dword
+        with_items:
+          - { v: ElevateNonAdmins, d: "0" }
+          - { v: TargetGroupEnabled, d: "1" }
+          - { v: SetUpdateNotificationLevel, d: "1" }
+          - { v: UpdateNotificationLevel, d: "2" }
+          - { v: DoNotConnectToWindowsUpdateInternetLocations, d: "1" }
+          - { v: DisableDualScan, d: "1" }
+ 
+      - name: configure automatic updates
+        win_regedit:
+          key: HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate\AU
+          value: "{{ item.v }}"
+          data: "{{ item.d }}"
+          datatype: dword
+        with_items:
+          - { v: AUOptions, d: "3" }
+          - { v: NoAutoUpdate, d: "1" }
+          - { v: RebootWarningTimeoutEnabled, d: "1" }
+          - { v: UseWUServer, d: "1" }
+          - { v: NoAUShutdownOption, d: "1"}
+ 
+    - block:
+      - name: select managed server and check for updates
+        win_updates:
+          category_names:
+            – CriticalUpdates
+          state: searched
+
+  handlers:
+   - name: report to wsus on change
+      win_shell: 'wuauclt.exe /resetauthorization /detectnow'
