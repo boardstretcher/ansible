@@ -1,0 +1,16 @@
+---
+
+- name: install an msi
+  hosts: windows
+  
+  tasks:
+    - name: download the thing
+      win_get_url:
+        url: "https://downloadserver/path/to/msi/somepackage.msi"
+        dest: "c:\temp\somepackage.msi"
+    
+    - name: install the thing
+      win_package:
+        path: "c:\temp\somepackage.msi"
+        arguments: "/qn"
+        state: present
