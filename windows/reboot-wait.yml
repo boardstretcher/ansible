@@ -1,0 +1,10 @@
+---
+
+- name: reboot a windows machine and wait VAR seconds
+  hosts: windows
+  vars:
+    WAIT_S: 60
+  
+  tasks:
+    ansible.windows.win_reboot:
+      reboot_timeout: "{{ WAIT_S }}"
