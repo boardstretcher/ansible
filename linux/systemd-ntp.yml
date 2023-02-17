@@ -1,0 +1,65 @@
+---
+- name: playbook
+  tags: dev
+  hosts: all
+  order: inventory
+  connection: ssh
+  become: true
+  become_method: sudo
+  
+  ignore_errors: false
+  gather_facts: true
+
+  vars:
+    ntp_servers:
+      - "2.pool.ntp.org"
+      - "3.pool.ntp.org"
+    fallback_ntp_servers:
+      - "0.pool.ntp.org"
+      - "1.pool.ntp.org"
+    timesync_timezone: EST
+    timesync_write_hwclock_on_change: True
+  
+  pre_tasks:
+    - name: Print all available facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: check for os
+      assert:
+        that:
+          - ansible_os_family == 'RedHat'
+        success_msg: "Linux found"
+        fail_msg: "Not Linux"
+
+  tasks:
+    package:
+      name: systemd-timesyncd
+
+    timezone:
+      name: "{{ timesync_timezone }}"
+      notify: config change
+ 
+    copy:
+      dest: "/etc/systemd/timesyncd.conf"
+      content: |
+        [Time]
+        NTP={{ ntp_servers | default("") | join("") }}
+        FallbackNTP={{ fallback_ntp_servers | join("") }}
+    notify: config change
+
+    service:
+      name: systemd-timesyncd.service
+      enabled: yes
+      state: started
+
+  handlers:
+    - name: restart systemd-timesyncd
+      service:
+        name: systemd-timesyncd.service
+        state: restarted
+      listen: config changed
+
+    - name: write to hc
+      command: hwclock --systohc
+      listen: config changed
