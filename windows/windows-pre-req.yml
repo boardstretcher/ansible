@@ -1,0 +1,34 @@
+---
+
+- name: windows pre-req checks
+
+  tags: dev
+  
+  hosts: win_hosts
+  order: inventory
+  connection: winrm
+
+  ignore_errors: false
+  gather_facts: true
+
+  tasks:
+    - name: Print all available facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: check for os
+      assert:
+        that:
+          - ansible_os_family == 'Windows'
+        success_msg: "SUCCESS: OS is Windows"
+        fail_msg: "FAIL: OS is NOT Windows"
+  
+    - name: get installation type
+      win_reg_stat:
+        path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion
+        name: InstallationType
+      register: get_windows_installation_type
+
+    - name: set installation type
+      set_fact:
+        windows_installation_type: "{{ get_windows_installation_type.value | default('') }}"
