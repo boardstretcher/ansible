@@ -2,15 +2,38 @@
 
 - name: install an msi
   hosts: windows
+    
+  tags: dev
+  
+  hosts: win_hosts
+  order: inventory
+  connection: winrm
+
+  ignore_errors: false
+  gather_facts: true
+
+  pre_tasks:
+    - name: Print all available facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: check for os
+      assert:
+        that:
+          - ansible_os_family == 'Windows'
+        success_msg: "SUCCESS: OS is Windows"
+        fail_msg: "FAIL: OS is NOT Windows"
   
   tasks:
-    - name: download the thing
-      win_get_url:
-        url: "https://downloadserver/path/to/msi/somepackage.msi"
-        dest: "c:\temp\somepackage.msi"
+    - block:
+      - name: download the thing
+        win_get_url:
+          url: "https://downloadserver/path/to/msi/somepackage.msi"
+          dest: "c:\temp\somepackage.msi"
     
-    - name: install the thing
-      win_package:
-        path: "c:\temp\somepackage.msi"
-        arguments: "/qn"
-        state: present
+      - name: install the thing
+        win_package:
+          path: "c:\temp\somepackage.msi"
+          arguments: "/qn"
+          state: present
+  tags: msi
