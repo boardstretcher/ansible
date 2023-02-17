@@ -1,10 +1,32 @@
 ---
 
 - name: wsus setup and configuration
-  hosts: all
+  hosts: windows
+
   vars:
     WSUS_SERVER: http://somewsusserver:8530
 
+  tags: dev
+  
+  hosts: win_hosts
+  order: inventory
+  connection: winrm
+
+  ignore_errors: false
+  gather_facts: true
+
+  pre_tasks:
+    - name: Print all available facts
+      ansible.builtin.debug:
+        var: ansible_facts
+
+    - name: check for os
+      assert:
+        that:
+          - ansible_os_family == 'Windows'
+        success_msg: "SUCCESS: OS is Windows"
+        fail_msg: "FAIL: OS is NOT Windows"
+  
   tasks:
     - block:
       - name: add to registry
@@ -56,13 +78,15 @@
           - { v: RebootWarningTimeoutEnabled, d: "1" }
           - { v: UseWUServer, d: "1" }
           - { v: NoAUShutdownOption, d: "1"}
- 
+   tags: registry
+   
     - block:
       - name: select managed server and check for updates
         win_updates:
           category_names:
             – CriticalUpdates
           state: searched
+    tags: update
 
   handlers:
    - name: report to wsus on change
