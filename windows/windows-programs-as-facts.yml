@@ -1,0 +1,12 @@
+---
+- name: Gather list of installed applications on Windows
+  hosts: windows
+  gather_facts: false
+  tasks:
+    - name: Gather installed application facts
+      win_shell: Get-WmiObject -Class Win32_Product | Select-Object Name, Version
+      register: app_facts
+
+    - name: Store installed applications as facts
+      set_fact:
+        installed_apps: "{{ app_facts.stdout_lines | map('regex_replace', '^(.*?)\\s+(\\d.*)$', '\\1==\\2') | list }}"
