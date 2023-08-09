@@ -28,3 +28,53 @@
         - reboot_pending.exists
         - reboot_in_progress.exists
         - netlogon_value.value_data == "JoinDomain"
+
+
+---
+- name: wsus test run
+
+  hosts: "{{ ansible_limit | default(None) }}"
+  connection: winrm
+  ignore_errors: false
+  gather_facts: false
+  strategy: free
+  
+  vars: 
+    ansible_winrm_server_cert_validation: ignore
+
+  tasks:
+    - name: End the play for hosts don't that have u_management_system
+      ansible.builtin.meta: end_host
+      when: u_management_system != "Ansible Automation Platform"
+
+    - name: windows update
+      block:
+        - name: run windows update 
+          win_updates:
+            category_names:
+              - "*" 
+            state: installed
+            server_selection: managed_server
+          retries: 1
+          register: available_updates
+          when: force_patch|default(false)|bool == true or (patching_enabled|default(true)|bool == true and perform_patch|default(false)|bool == true)
+      rescue:
+        ansible.windows.win_reboot:
+        boot_time_command:
+        reboot_timeout: 600
+        when: available_updates.reboot_required and (u_patch_method == u_reboot_method) and (u_patch_window == u_reboot_window)
+
+    - name: display warning for reboot_required
+      debug:
+        msg: "Warning - Reboot is required before updates can be downloaded or installed"
+      when: available_updates.reboot_required
+
+    - name: check windows update
+      win_updates:
+        category_names:
+          - "*" 
+        state: searched
+        server_selection: managed_server
+      #poll: 0
+      register: available_updates
+      when: patching_enabled|default(true)|bool == false
