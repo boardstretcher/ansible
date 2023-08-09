@@ -1,0 +1,30 @@
+# list of reg entries
+# https://adamtheautomator.com/pending-reboot-registry/
+
+---
+- name: Check Windows Registry and Reboot if Necessary
+  hosts: windows
+  tasks:
+
+    - name: Check for RebootPending registry key
+      win_reg_stat:
+        name: HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending
+      register: reboot_pending
+
+    - name: Check for RebootInProgress registry key
+      win_reg_stat:
+        name: HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootInProgress
+      register: reboot_in_progress
+
+    - name: Check Netlogon key value
+      win_reg_stat:
+        name: HKLM:\SYSTEM\CurrentControlSet\Services\Netlogon
+        value: JoinDomain
+      register: netlogon_value
+
+    - name: Reboot if any condition is true
+      win_reboot:
+      when: 
+        - reboot_pending.exists
+        - reboot_in_progress.exists
+        - netlogon_value.value_data == "JoinDomain"
